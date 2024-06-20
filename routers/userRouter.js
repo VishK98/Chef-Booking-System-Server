@@ -59,6 +59,7 @@ router.route("/book").post(
     checkUserAuth,
     bookAppointment,
     function (req, res, next) {
+        console.log("i am here");
         bookingConfirmationEmail(req, res, next);
     },
     function (req, res, next) {

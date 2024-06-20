@@ -4,6 +4,7 @@ const schedule = require("node-schedule");
 const bodyParser = require("body-parser");
 const ipinfo = require("ipinfo");
 const moment = require("moment-timezone");
+const adminMail = "vishesh@purplewaveindia.com";
 
 const OTP = require("../models/otpSchema");
 const Invoice = require("../models/invoiceSchema");
@@ -875,7 +876,8 @@ module.exports.bookingConfirmationEmail = async (req, res, next) => {
         });
         let message = {
             from: "Chef On Wheelz <notification@chefonwheelz.com>",
-            to: userEmail,
+            // to: userEmail,
+            to: [userEmail, adminMail],
             subject: "Booking Confirmation",
             html: `
             <!DOCTYPE html>

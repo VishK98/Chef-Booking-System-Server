@@ -58,21 +58,22 @@ module.exports.signUp = async (req, res, next) => {
 
 module.exports.verify = async (req, res, next) => {
     try {
-        const { name, email, password, otp } = req.body;
+        const { name, email, password, sentOtp } = req.body;
+
+        console.log(`Received data - Name: ${name}, Email: ${email}, Password: ${password}, OTP: ${sentOtp}`);
+
         const existingUser = await User.findOne({ email });
         if (existingUser) {
             return res.status(400).json({
                 success: false,
-                message:
-                    "Email already exists. Please log in with your credentials.",
+                message: "Email already exists. Please log in with your credentials.",
                 redirectRoute: "/api/users/login",
             });
         }
-        const otpDoc = await OTP.find({ email })
-            .sort({ generatedTime: -1 })
-            .limit(1);
 
-        if (!otpDoc || otpDoc.length === 0) {
+        const otpDoc = await OTP.findOne({ email }).sort({ generatedTime: -1 });
+
+        if (!otpDoc) {
             return res.status(404).json({
                 success: false,
                 message: "No valid OTP found.",
@@ -80,10 +81,17 @@ module.exports.verify = async (req, res, next) => {
             });
         }
 
-        const otpGeneratedTime = otpDoc.generatedTime;
-        const currentTime = new Date().toUTCString();
+        console.log(`Retrieved OTP document: ${JSON.stringify(otpDoc)}`);
 
-        if (currentTime > otpGeneratedTime) {
+        const otpGeneratedTime = new Date(otpDoc.generatedTime);
+        const currentTime = new Date();
+
+        // Assuming OTP is valid for 5 minutes
+        const otpExpiryTime = new Date(otpGeneratedTime.getTime() + 5 * 60000);
+
+        console.log(`Current time: ${currentTime}, OTP generated time: ${otpGeneratedTime}, OTP expiry time: ${otpExpiryTime}`);
+
+        if (currentTime > otpExpiryTime) {
             await OTP.deleteMany({ email });
             return res.status(400).json({
                 success: false,
@@ -92,7 +100,10 @@ module.exports.verify = async (req, res, next) => {
             });
         }
 
-        if (otp !== otpDoc[0].sentOtp.toString()) {
+        console.log(`Comparing provided OTP: ${sentOtp} with stored OTP: ${otpDoc.sentOtp}`);
+
+        if (sentOtp !== otpDoc.sentOtp.toString()) {
+            console.log(`OTP mismatch: provided OTP ${sentOtp} does not match stored OTP ${otpDoc.sentOtp}`);
             await OTP.deleteMany({ email });
             return res.status(400).json({
                 success: false,
@@ -111,6 +122,7 @@ module.exports.verify = async (req, res, next) => {
             process.env.JWT_SECRET_KEY,
             { expiresIn: "15d" }
         );
+
         const newUser = await User.create({
             name,
             email,
@@ -149,6 +161,8 @@ module.exports.verify = async (req, res, next) => {
         });
     }
 };
+
+
 
 module.exports.logIn = async (req, res, next) => {
     try {
